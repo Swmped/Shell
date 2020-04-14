@@ -43,11 +43,11 @@ case "$lsb_dist" in
         ;;
     centos|rhel)
         yum -q clean all
-        yum -q makecache
+        yum -q makecache &>/dev/null
         yum install -q -y audit >/dev/null
 	add_audit_rules
         yum install -q -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.11.4-1.x86_64.rpm >/dev/null
-	if rpm -q audit && rpm -q wazuh_status;then
+	if rpm -q audit && rpm -q wazuh-agent;then
 		echo "安装完成"
 	else
 		echo "安装失败"
