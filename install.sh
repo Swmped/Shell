@@ -58,4 +58,4 @@ case "$lsb_dist" in
         ;;
 esac
 
-rm -rf ${base_path}/install.sh
+#rm -rf ${base_path}/install.sh
