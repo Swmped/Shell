@@ -17,10 +17,10 @@ export WAZUH_MANAGER_IP="$1"
 add_audit_rules(){
 	AUDIT_RULE_FILE="/etc/audit/rules.d/audit.rules"
 	rules=`auditctl -l`
-        if ! echo "$rules" | grep "audit-wazuh-c" >/dev/null;then
-                echo "-a exit,always -F auid!=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> $AUDIT_RULE_FILE
-                echo "-a exit,always -F auid!=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> $AUDIT_RULE_FILE
-                auditctl -R $AUDIT_RULE_FILE
+        if ! echo "${rules}" | grep "audit-wazuh-c" >/dev/null;then
+                echo "-a exit,always -F auid!=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
+                echo "-a exit,always -F auid!=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
+                auditctl -R ${AUDIT_RULE_FILE} >/dev/null
         fi
 }
 
@@ -35,7 +35,7 @@ case "$lsb_dist" in
         rm -rf /tmp/wazuh-agent.deb
 	auditd_status=`dpkg -s auditd 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
 	wazuh_status=`dpkg -s wazuh-agent 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
-	if [ "auditd_status" == " install ok installed" ] && [ "wazuh_status" == " install ok installed" ];then
+	if [ "${auditd_status}" == " install ok installed" ] && [ "${wazuh_status}" == " install ok installed" ];then
 		echo "安装完成"
 	else
 		echo "安装失败"
