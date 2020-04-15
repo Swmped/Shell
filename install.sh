@@ -35,7 +35,7 @@ case "$lsb_dist" in
         rm -rf /tmp/wazuh-agent.deb
 	auditd_status=`dpkg -s auditd 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
 	wazuh_status=`dpkg -s wazuh-agent 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
-	if [ "${auditd_status}" == " install ok installed" ] && [ "${wazuh_status}" == " install ok installed" ];then
+	if [ "${auditd_status}" = " install ok installed" ] && [ "${wazuh_status}" = " install ok installed" ];then
 		echo "安装完成"
 	else
 		echo "安装失败"
