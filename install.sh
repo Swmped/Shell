@@ -11,7 +11,7 @@ else
     exit 0
 fi
 
-export WAZUH_MANAGER_IP="$1"
+export WAZUH_MANAGER="$1"
 
 #添加auditd命令审计规则
 add_audit_rules(){
