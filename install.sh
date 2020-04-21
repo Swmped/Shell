@@ -13,7 +13,19 @@ fi
 
 export WAZUH_MANAGER="$1"
 
-#添加auditd命令审计规则
+#获取系统信息
+get_system_info(){
+	echo "Hostname : `hostname`"
+	echo "Serial Number : `dmidecode -t system | grep "Serial Number"`"
+	for netcard in $(ls /sys/class/net)
+	do
+		if ! echo ${netcard} | grep -E "lo|docker0|virbr0|veth";then
+			echo "HWaddr-${netcard} : `cat /sys/class/net/${netcard}/address`"
+		fi
+	done
+}
+
+#添加审计规则
 add_audit_rules(){
 	AUDIT_RULE_FILE="/etc/audit/rules.d/audit.rules"
 	rules=`auditctl -l`
@@ -30,13 +42,14 @@ case "$lsb_dist" in
         apt-get -qq update
         apt-get install -qq -y auditd >/dev/null
 	add_audit_rules
-        curl -so /tmp/wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.11.4-1_amd64.deb
+	curl -so wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
         dpkg -i /tmp/wazuh-agent.deb >/dev/null
         rm -rf /tmp/wazuh-agent.deb
 	auditd_status=`dpkg -s auditd 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
 	wazuh_status=`dpkg -s wazuh-agent 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
 	if [ "${auditd_status}" = " install ok installed" ] && [ "${wazuh_status}" = " install ok installed" ];then
 		echo "安装完成"
+		get_system_info
 	else
 		echo "安装失败"
 	fi
@@ -46,9 +59,10 @@ case "$lsb_dist" in
         yum -q makecache &>/dev/null
         yum install -q -y audit >/dev/null
 	add_audit_rules
-        yum install -q -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.11.4-1.x86_64.rpm >/dev/null
+        yum install -q -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm >/dev/null
 	if rpm -q audit && rpm -q wazuh-agent;then
 		echo "安装完成"
+		get_system_info
 	else
 		echo "安装失败"
 	fi
@@ -57,5 +71,3 @@ case "$lsb_dist" in
         echo "系统版本为:$lsb_dist,不支持,安装失败！"
         ;;
 esac
-
-#rm -rf ${base_path}/install.sh
