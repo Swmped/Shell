@@ -15,12 +15,12 @@ export WAZUH_MANAGER="$1"
 
 #获取系统信息
 get_system_info(){
-	echo "Hostname : `hostname`"
-	echo "Serial Number : `dmidecode -t system | grep "Serial Number"`"
+	echo "Hostname: `hostname`"
+	echo "Serial Number: `dmidecode -t system | grep "Serial Number" | awk -F ":" '{print $2}'`"
 	for netcard in $(ls /sys/class/net)
 	do
-		if ! echo ${netcard} | grep -E "lo|docker0|virbr0|veth";then
-			echo "HWaddr-${netcard} : `cat /sys/class/net/${netcard}/address`"
+		if ! echo ${netcard} | grep -E "lo|docker0|virbr0|veth" &>/dev/null;then
+			echo "HWaddr-${netcard}: `cat /sys/class/net/${netcard}/address`"
 		fi
 	done
 }
@@ -42,7 +42,7 @@ case "$lsb_dist" in
         apt-get -qq update
         apt-get install -qq -y auditd >/dev/null
 	add_audit_rules
-	curl -so wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
+	curl -so /tmp/wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
         dpkg -i /tmp/wazuh-agent.deb >/dev/null
         rm -rf /tmp/wazuh-agent.deb
 	auditd_status=`dpkg -s auditd 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
