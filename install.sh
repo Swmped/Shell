@@ -12,6 +12,11 @@ else
 fi
 
 export WAZUH_MANAGER="$1"
+if ! ping -c 1 ${WAZUH_MANAGER} &>/dev/null;then
+	echo "无法访问${WAZUH_MANAGER},请检查网络!"
+	exit 0
+fi
+
 
 #获取系统信息
 get_system_info(){
@@ -25,13 +30,15 @@ get_system_info(){
 	done
 }
 
-#添加审计规则
-add_audit_rules(){
+#配置auditd
+audit_configure(){
 	AUDIT_RULE_FILE="/etc/audit/rules.d/audit.rules"
 	rules=`auditctl -l`
         if ! echo "${rules}" | grep "audit-wazuh-c" >/dev/null;then
                 echo "-a exit,always -F auid!=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
                 echo "-a exit,always -F auid!=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
+		echo "-a exit,always -F uid>=0 -F auid=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
+		echo "-a exit,always -F uid>=0 -F auid=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
                 auditctl -R ${AUDIT_RULE_FILE} >/dev/null
         fi
 }
@@ -41,7 +48,7 @@ case "$lsb_dist" in
     ubuntu)
         apt-get -qq update
         apt-get install -qq -y auditd >/dev/null
-	add_audit_rules
+	audit_configure
 	curl -so /tmp/wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
         dpkg -i /tmp/wazuh-agent.deb >/dev/null
         rm -rf /tmp/wazuh-agent.deb
@@ -58,7 +65,7 @@ case "$lsb_dist" in
         yum -q clean all
         yum -q makecache &>/dev/null
         yum install -q -y audit >/dev/null
-	add_audit_rules
+	audit_configure
         yum install -q -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm >/dev/null
 	if rpm -q audit && rpm -q wazuh-agent;then
 		echo "安装完成"
