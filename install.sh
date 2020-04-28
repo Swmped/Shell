@@ -76,8 +76,12 @@ case "$lsb_dist" in
 	audit_configure
         yum install -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm &>>${log}
 	if rpm -q audit && rpm -q wazuh-agent;then
-		echo "安装完成"
-		get_system_info
+		if systemctl status wazuh-agent | grep "active (running)" &>>${log};then
+			echo "安装完成"
+			get_system_info
+		else
+			echo "服务未正常运行"
+		fi
 	else
 		echo "安装失败"
 	fi
