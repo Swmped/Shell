@@ -59,8 +59,12 @@ case "$lsb_dist" in
 	auditd_status=`dpkg -s auditd 2>>${log} | grep Status | awk -F ":" '{print $2}'`
 	wazuh_status=`dpkg -s wazuh-agent 2>>${log} | grep Status | awk -F ":" '{print $2}'`
 	if [ "${auditd_status}" = " install ok installed" ] && [ "${wazuh_status}" = " install ok installed" ];then
-		echo "安装完成"
-		get_system_info
+		if systemctl status wazuh-agent | grep "active (running)" &>>${log};then
+			echo "安装完成"
+			get_system_info
+		else
+			echo "服务未正常运行"
+		fi
 	else
 		echo "安装失败"
 	fi
