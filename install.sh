@@ -3,6 +3,10 @@
 set -e
 
 base_path=$( cd `dirname "${BASH_SOURCE[0]}"` && pwd )
+log="/tmp/wazuh_install.log"
+
+> ${log}
+
 #判断系统发行版本
 if [ -r /etc/os-release ];then
     lsb_dist="$(. /etc/os-release && echo "$ID")"
@@ -12,7 +16,7 @@ else
 fi
 
 export WAZUH_MANAGER="$1"
-if ! ping -c 1 ${WAZUH_MANAGER} &>/dev/null;then
+if ! ping -c 1 ${WAZUH_MANAGER} &>>${log};then
 	echo "无法访问${WAZUH_MANAGER},请检查网络!"
 	exit 0
 fi
@@ -34,26 +38,26 @@ get_system_info(){
 audit_configure(){
 	AUDIT_RULE_FILE="/etc/audit/rules.d/audit.rules"
 	rules=`auditctl -l`
-        if ! echo "${rules}" | grep "audit-wazuh-c" >/dev/null;then
+        if ! echo "${rules}" | grep "audit-wazuh-c" &>>${log};then
                 echo "-a exit,always -F auid!=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
                 echo "-a exit,always -F auid!=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
 		echo "-a exit,always -F uid>=0 -F auid=-1 -F arch=b32 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
 		echo "-a exit,always -F uid>=0 -F auid=-1 -F arch=b64 -S execve -k audit-wazuh-c" >> ${AUDIT_RULE_FILE}
-                auditctl -R ${AUDIT_RULE_FILE} >/dev/null
+                auditctl -R ${AUDIT_RULE_FILE} &>>${log}
         fi
 }
 
 #安装
 case "$lsb_dist" in
     ubuntu)
-        apt-get -qq update
-        apt-get install -qq -y auditd >/dev/null
+        apt-get update &>>${log}
+        apt-get install -y auditd &>>{log}
 	audit_configure
 	curl -so /tmp/wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
-        dpkg -i /tmp/wazuh-agent.deb >/dev/null
+        dpkg -i /tmp/wazuh-agent.deb &>>${log}
         rm -rf /tmp/wazuh-agent.deb
-	auditd_status=`dpkg -s auditd 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
-	wazuh_status=`dpkg -s wazuh-agent 2>/dev/null | grep Status | awk -F ":" '{print $2}'`
+	auditd_status=`dpkg -s auditd 2>>${log} | grep Status | awk -F ":" '{print $2}'`
+	wazuh_status=`dpkg -s wazuh-agent 2>>${log} | grep Status | awk -F ":" '{print $2}'`
 	if [ "${auditd_status}" = " install ok installed" ] && [ "${wazuh_status}" = " install ok installed" ];then
 		echo "安装完成"
 		get_system_info
@@ -62,11 +66,11 @@ case "$lsb_dist" in
 	fi
         ;;
     centos|rhel)
-        yum -q clean all
-        yum -q makecache &>/dev/null
-        yum install -q -y audit >/dev/null
+        yum clean all &>>${log}
+        yum makecache &>>${log}
+        yum install -y audit &>>${log}
 	audit_configure
-        yum install -q -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm >/dev/null
+        yum install -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm &>>${log}
 	if rpm -q audit && rpm -q wazuh-agent;then
 		echo "安装完成"
 		get_system_info
