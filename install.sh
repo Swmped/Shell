@@ -56,6 +56,8 @@ case "$lsb_dist" in
 	curl -so /tmp/wazuh-agent.deb https://packages.wazuh.com/3.x/apt/pool/main/w/wazuh-agent/wazuh-agent_3.12.2-1_amd64.deb
         dpkg -i /tmp/wazuh-agent.deb &>>${log}
         rm -rf /tmp/wazuh-agent.deb
+	echo "logcollector.remote_commands=1" >> /var/ossec/etc/local_internal_options.conf
+	echo "wazuh_command.remote_commands=1" >> /var/ossec/etc/local_internal_options.conf
 	auditd_status=`dpkg -s auditd 2>>${log} | grep Status | awk -F ":" '{print $2}'`
 	wazuh_status=`dpkg -s wazuh-agent 2>>${log} | grep Status | awk -F ":" '{print $2}'`
 	if [ "${auditd_status}" = " install ok installed" ] && [ "${wazuh_status}" = " install ok installed" ];then
@@ -75,6 +77,8 @@ case "$lsb_dist" in
         yum install -y audit &>>${log}
 	audit_configure
         yum install -y https://packages.wazuh.com/3.x/yum/wazuh-agent-3.12.2-1.x86_64.rpm &>>${log}
+	echo "logcollector.remote_commands=1" >> /var/ossec/etc/local_internal_options.conf
+	echo "wazuh_command.remote_commands=1" >> /var/ossec/etc/local_internal_options.conf
 	if rpm -q audit && rpm -q wazuh-agent;then
 		if systemctl status wazuh-agent | grep "active (running)" &>>${log};then
 			echo "安装完成"
