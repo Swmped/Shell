@@ -2,7 +2,7 @@
 #set -e
 stty erase ^H
 
-#获取脚本所在的目录
+#获取脚本路径
 base_path=$(cd `dirname $0` && pwd)
 #源码存放目录
 source_code_path=$1
@@ -51,28 +51,28 @@ decompress(){
         #压缩文件后缀名,如 zip
         format=$2
         #压缩文件解压路径,如/root/test_decompressed
-        file_path=${file_name%.*}_decompressed
-        if [ ! -d ${file_path} ];then
-                mkdir -p ${file_path}
+        unpack_path=${file_name%.*}_decompressed
+        if [ ! -d ${unpack_path} ];then
+                mkdir -p ${unpack_path}
         fi
         case ${format} in
         zip|jar|war)
-                unzip -q ${file_name} -d ${file_path}
+                unzip -q ${file_name} -d ${unpack_path}
                 ;;
         rar)
-                unrar x ${file_name} ${file_path}
+                unrar x ${file_name} ${unpack_path}
                 ;;
         7z)
-                7z x ${file_name} ${file_path}
+                7z x ${file_name} ${unpack_path}
                 ;;
         tar)
-                tar -xf ${file_name} -C ${file_path} >/dev/null 2>&1
+                tar -xf ${file_name} -C ${unpack_path} >/dev/null 2>&1
                 ;;
         tgz|tar.gz)
-                tar -zxf ${file_name} -C ${file_path} >/dev/null 2>&1
+                tar -zxf ${file_name} -C ${unpack_path} >/dev/null 2>&1
                 ;;
         tar.bz2)
-                tar -jxf ${file_name} -C ${file_path}
+                tar -jxf ${file_name} -C ${unpack_path}
                 ;;
         *)
                 echo "  未知的压缩格式:${format}"
@@ -100,6 +100,8 @@ files_collect(){
                         continue
                 else
                         mkdir -p ${file_storage_path}/${file_type}
+                        echo -e "\n${file_type}\n" >> ${file_storage_path}/files_stat
+                        echo "${files}" >> ${file_storage_path}/files_stat
                 fi
                 #指定换行符为字段分割符
                 oldIFS=$IFS
@@ -114,7 +116,7 @@ files_collect(){
 }
 
 #grep检索信息
-detect(){
+search(){
         #grep option,若无则使用""
         option=$1
         #grep pattern
@@ -127,11 +129,14 @@ detect(){
         title=$5
 
         echo -e "  ${title}......\c"
+        #检索
         grep ${option} ${pattern} ${directory} > ${result_path}/${result_file}
         sed -i '/Binary file/d' ${result_path}/${result_file}
+        #统计
         awk 'BEGIN{FS=":"}{print $1}' ${result_path}/${result_file} | uniq -c | sort -k 1 -n -r > ${result_path}/${result_file}_stat
         echo -e "完成\n"
 }
+
 
 #检索结果显示
 result_display(){
@@ -223,14 +228,16 @@ while [ 1 ];do
         1)
                 #中文检索
                 chinese_regex="[\p{Han}]"
-                detect "-r -n -P" "${chinese_regex}" "${source_code_path}" "Chinese" "中文检索"
+                search "-r -n -P" "${chinese_regex}" "${source_code_path}" "Chinese" "中文检索"
+                #过滤掉.js .ts .tsx .svg文件，实际审核中发现这些文件内的中文基本为代码注释
+                sed -i '/\.js$/d; /\.ts$/d; /\.tsx$/d; /\.svg$/d' ${result_path}/Chinese_stat
                 ;;
         2)
                 #个人信息检索--手机号&身份证&邮箱
                 phone_regex="(13[0-9]|14[5|7]|15[0|1|2|3|4|5|6|7|8|9]|18[0|1|2|3|5|6|7|8|9])\d{8}"
                 id_regex="([1-6])([0-7])([0-5]|9)\d([0-4]|8)\d(1|2)(0|9)\d{2}(0|1)(\d)([0-3])\d{4}(\d|x|X)"
                 email_regex="([A-Za-z0-9_\-\.])+\@([A-Za-z0-9_\-\.])+\.([A-Za-z]{2,8})"
-                detect "-r -n -w -P" "${phone_regex}|${id_regex}|${email_regex}" "${source_code_path}" "Personal_Information" "个人信息检索"
+                search "-r -n -w -P" "${phone_regex}|${id_regex}|${email_regex}" "${source_code_path}" "Personal_Information" "个人信息检索"
                 ;;
         3)
                 #特定格式文件收集
@@ -240,12 +247,14 @@ while [ 1 ];do
                 #关键字检索
                 read -p '  输入一个或多个关键词,以"|"分隔:' keywords
                 keywords_regex=$(echo "${keywords}" | tr -d "[:space:]")
-                detect "-r -n -E" "${keywords_regex}" "${source_code_path}" "Keywords" "关键字检索"
+                search "-r -n -E" "${keywords_regex}" "${source_code_path}" "Keywords" "关键字检索"
                 ;;
         5)
                 #检索10.0.0.0/8段IP
                 ip_regex="((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})(\.((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})){3}"
-                detect "-r -n -w -P" "${ip_regex}" "${source_code_path}" "IP" "IP检索"
+                search "-r -n -w -P" "${ip_regex}" "${source_code_path}" "IP" "IP检索"
+                #过滤掉127.0.0.1和192.168.0.0/24
+                sed -i '/127\.0\.0\.1/d; /192\.168\..*/d' ${result_path}/IP
                 ;;
         6)
                 while [ 1 ];do
@@ -259,8 +268,10 @@ while [ 1 ];do
                                 result_display Personal_Information
                                 ;;
                         3)
-                                echo -e "  收集的文件存放在${result_path}\n"
-                                sleep 5
+                                echo -e "  收集的文件如下:\n"
+                                less ${result_path}/files/files_stat
+                                echo -e "\n\n收集的文件存放在${result_path}\n"
+                                read -n1 -p "按任意键结束......" tmp
                                 ;;
                         4)
                                 result_display Keywords
